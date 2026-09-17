@@ -1,0 +1,33 @@
+name: Port a package
+description: Claim a standard library package, or ask for one to be prioritised
+labels: ["port"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        One issue per package. Check the milestone issues first, because the package may already be claimed in a comment there.
+
+  - type: input
+    id: package
+    attributes:
+      label: Go package
+      placeholder: "encoding/csv"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: intent
+    attributes:
+      label: What this issue is
+      options:
+        - I want to port it
+        - I want somebody to port it
+        - It is ported and something is missing from it
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything already known about it
+      description: Dependencies that are not ready, parts that will not map cleanly, tests that will need a ledger entry.

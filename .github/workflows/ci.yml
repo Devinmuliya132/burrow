@@ -1,0 +1,178 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  # The cheap checks, first, so that a pull request that breaks a rule finds
+  # out in forty seconds rather than after the compiler matrix has finished.
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # check-headers can only verify that a file names a real upstream file if
+      # it has the Go tree to look in, and CI is the one place that always does.
+      # A contributor without Go installed gets the weaker shape checks.
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+
+      - name: No banned libc functions
+        run: tools/check-banned.sh
+
+      - name: Every ported file names the Go file it came from
+        run: tools/check-headers.sh
+
+      - name: clang-format
+        run: |
+          clang-format --version
+          clang-format --dry-run --Werror $(git ls-files '*.c' '*.h')
+
+      - name: Trailing whitespace and tabs
+        run: |
+          if git grep -nIP '[ \t]+$' -- '*.c' '*.h' '*.md' '*.yml'; then
+            echo "trailing whitespace above" >&2
+            exit 1
+          fi
+
+  # Four compilers, because each of them refuses something the others accept,
+  # and MSVC is the one that decides the language floor. A warning that only gcc
+  # emits is still a warning we want to have fixed before somebody hits it.
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-gcc
+            os: ubuntu-latest
+            cc: gcc
+          - name: linux-clang
+            os: ubuntu-latest
+            cc: clang
+          - name: linux-arm64-gcc
+            os: ubuntu-24.04-arm
+            cc: gcc
+          - name: macos-clang
+            os: macos-latest
+            cc: clang
+          - name: macos-x64-clang
+            os: macos-13
+            cc: clang
+          - name: windows-msvc
+            os: windows-latest
+            cmake: true
+          - name: windows-mingw
+            os: windows-latest
+            cc: gcc
+            shell: msys2
+    steps:
+      - uses: actions/checkout@v7
+
+      - if: matrix.shell == 'msys2'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          install: mingw-w64-ucrt-x86_64-gcc make
+          update: true
+
+      # MSVC has no make and no business pretending to. It gets the CMake path,
+      # which is the one Windows users are going to take anyway.
+      - if: matrix.cmake
+        name: build and test through cmake
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+          ctest --test-dir build -C Release --output-on-failure
+
+      - if: ${{ !matrix.cmake && matrix.shell != 'msys2' }}
+        name: build and test
+        run: make CC=${{ matrix.cc }} test
+        env:
+          CC: ${{ matrix.cc }}
+
+      - if: matrix.shell == 'msys2'
+        name: build and test
+        shell: msys2 {0}
+        run: make CC=${{ matrix.cc }} test
+
+  # The same tree under cmake on the platforms that already built it with make,
+  # because the two build descriptions drift apart silently and the only way to
+  # notice is to run both.
+  cmake:
+    name: cmake (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+
+  # Five sanitisers, because the memory design is the part of this project most
+  # likely to be wrong and the part where being wrong is worst. MemorySanitizer
+  # needs every dependency instrumented to avoid false positives, which for now
+  # is trivially true because burrow has no dependencies.
+  sanitizers:
+    name: ${{ matrix.san }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - san: asan+ubsan
+            flags: -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+          - san: tsan
+            flags: -fsanitize=thread -fno-omit-frame-pointer
+          - san: msan
+            flags: -fsanitize=memory -fsanitize-memory-track-origins=2 -fno-omit-frame-pointer
+    steps:
+      - uses: actions/checkout@v7
+      # MODE=debug drops the optimisation level and with it _FORTIFY_SOURCE,
+      # which needs optimisation to do anything and argues with the sanitisers
+      # when it is on.
+      - run: make CC=clang MODE=debug CFLAGS="-std=c11 -O1 -g -Iinclude -DBURROW_SOURCE_ID=\\\"ci\\\" ${{ matrix.flags }}" test
+        env:
+          UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
+          ASAN_OPTIONS: detect_leaks=1:strict_string_checks=1:detect_stack_use_after_return=1
+
+  # Not a gate yet. It is here from the first commit so that the number is a
+  # trend rather than a surprise, and so the day it becomes a gate nobody has to
+  # build the tooling under deadline.
+  coverage-gate:
+    name: coverage against go1.27.1
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27.1"
+          cache: false
+      - name: how much of the standard library exists
+        run: |
+          if [ -x tools/coverage.sh ]; then
+            tools/coverage.sh
+          else
+            echo "tools/coverage.sh does not exist yet, see issue #1"
+          fi

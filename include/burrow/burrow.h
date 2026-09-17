@@ -1,0 +1,47 @@
+/* burrow: the Go standard library, in C.
+ *
+ * This is the umbrella header for the split form of the tree, the one you use
+ * when you have checked the repository out. If you downloaded the amalgamation
+ * you have a single burrow.h at the top of your project and you do not need
+ * this file, because the generator produced that one from these.
+ *
+ * Include what you need instead of this, if you care about compile time:
+ *
+ *     #include "burrow/strings.h"
+ *     #include "burrow/net/http.h"
+ *
+ * Two things to know before you read any other header.
+ *
+ * First, there is no prefix on anything you call. strings.Contains is
+ * strings_contains, not burrow_strings_contains, because the package segment is
+ * already a namespace and a second one on top of it would be noise repeated
+ * 23,730 times. Types are CamelCase, functions are snake_case, and macros keep a
+ * BURROW_ prefix because the preprocessor ignores every scoping mechanism C has.
+ *
+ * Second, every function that can allocate takes an allocator as its first
+ * parameter. No exceptions, no hidden global, no per-object free function to
+ * remember. Make an arena, pass it down, free it once.
+ *
+ *     Arena arena = arena_new(NULL);
+ *     Alloc *a = arena_alloc(&arena);
+ *     Slice parts = strings_split(a, path, S("/"));
+ *     arena_free(&arena);
+ *
+ * Copyright 2026 The burrow Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style licence that can be found
+ * in the LICENSE file. */
+
+#ifndef BURROW_H
+#define BURROW_H
+
+#include "burrow/version.h"
+
+/* The rest of the library arrives here as it is written. The order is the
+ * construction order from docs/design/06-runtime.md section 12, because the
+ * headers have the same dependency shape the code does:
+ *
+ *   core types, allocators, runtime, reflect, then the packages in tier order.
+ *
+ * Nothing below this line yet. See the milestone issues. */
+
+#endif /* BURROW_H */

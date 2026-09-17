@@ -1,0 +1,305 @@
+# 07 — Reflection: type descriptors without a compiler
+
+`fmt.Printf("%v", x)`. `json.Marshal(x)`. `json.Unmarshal(b, &x)`.
+`template.Execute(w, data)`. `rows.Scan(&a, &b)`. `gob.Encode(x)`.
+`xml.Unmarshal`. `slog.Any`. `testing/quick`. Nine of the most-used entry
+points in the standard library, and every one of them needs to know, at
+runtime, the shape of a type the library has never seen.
+
+Go's compiler emits that information for every type. C emits none. This is the
+hardest wall in the project, and this document climbs it.
+
+## 1. What is actually required
+
+Reading the stdlib's reflection consumers back to front, the requirement set is
+narrower than "full reflection":
+
+| Capability | Needed by | Hard? |
+| --- | --- | --- |
+| Type kind, size, alignment | everything | no |
+| Struct field list: name, type, offset, tag | json, xml, gob, sql, template | no |
+| Exported vs unexported field | json, xml, gob | no |
+| Element type of slice/array/map/pointer/chan | everything | no |
+| Read a field's value given a base pointer | encoders, `fmt`, template | no |
+| Write a field's value | decoders, `Scan` | no |
+| Construct a zero value of a type | decoders | no |
+| Grow a slice, insert into a map, generically | decoders | no |
+| Method set enumeration + dynamic call | `net/rpc`, template method calls | **yes** |
+| Interface satisfaction check at runtime | `fmt` (`Stringer`), json (`Marshaler`) | moderate |
+| `reflect.MakeFunc`, `reflect.New` of arbitrary type | `testing/quick`, rpc | **yes** |
+| Struct tag parsing | json, xml, sql, template | no |
+
+Only three rows are hard, and two of them (`MakeFunc`, dynamic call) are needed
+by exactly two packages. Everything else is a data-description problem, and
+data can be described.
+
+## 2. The descriptor
+
+```c
+typedef enum {
+    KIND_INVALID, KIND_BOOL,
+    KIND_INT, KIND_INT8, KIND_INT16, KIND_INT32, KIND_INT64,
+    KIND_UINT, KIND_UINT8, /* … */ KIND_UINTPTR,
+    KIND_FLOAT32, KIND_FLOAT64, KIND_COMPLEX64, KIND_COMPLEX128,
+    KIND_ARRAY, KIND_CHAN, KIND_FUNC, KIND_INTERFACE,
+    KIND_MAP, KIND_POINTER, KIND_SLICE, KIND_STRING,
+    KIND_STRUCT, KIND_UNSAFE_POINTER,
+} Kind;
+
+typedef struct {
+    Str          name;        /* "X" */
+    Str          tag;         /* `json:"x,omitempty"` */
+    const Type  *type;
+    uint32_t        offset;
+    bool            exported;
+    bool            anonymous;   /* embedded */
+} Field;
+
+typedef struct {
+    Str          name;        /* "String" */
+    const Type  *ftype;       /* func descriptor */
+    void          (*thunk)(void *recv, void **args, void **rets);
+} Method;
+
+struct Type {
+    Str            name;        /* "Point" */
+    Str            pkg_path;    /* "image" */
+    Kind           kind;
+    uint32_t          size;
+    uint16_t          align;
+    uint16_t          nfield, nmethod;
+    const Field   *fields;      /* struct */
+    const Method  *methods;
+    const Type    *elem;        /* slice/array/ptr/chan/map-value */
+    const Type    *key;         /* map */
+    uint32_t          len;         /* array */
+    uint32_t          hash;        /* identity, for maps and type assertions */
+    const TypeOps *ops;        /* equal, hash, copy, zero — optional */
+};
+```
+
+One static `const` struct per type, in rodata, shared. A program using twelve
+types pays for twelve descriptors. `reflect` is then ordinary library code over
+these — all 265 declarations of it — and so are `fmt`, `encoding/json` and the
+rest.
+
+## 3. Declaring a type: the X-macro DSL
+
+The descriptor has to come from somewhere, and the choice of *where* determines
+whether `burrow` keeps its "`cc burrow.c`, no build step" promise. So the
+primary mechanism requires no external tool at all:
+
+```c
+#define POINT_FIELDS(F)                          \
+    F(Int, X, "json:\"x\"")                   \
+    F(Int, Y, "json:\"y\"")                   \
+    F(Str, Label, "json:\"label,omitempty\"")
+
+BURROW_STRUCT(Point, POINT_FIELDS)
+```
+
+`BURROW_STRUCT` expands twice over the field list: once to emit the struct
+definition, once to emit the descriptor with `offsetof` for each field. The
+declaration and the metadata cannot drift because there is one source for both
+— which is the property that makes this better than annotations plus a
+generator, not merely cheaper.
+
+Resulting usage:
+
+```c
+Point p = { .X = 3, .Y = 4, .Label = BURROW_S("origin") };
+
+fmt_printf(BURROW_S("%v\n"), BURROW_ANY(Point, &p));
+/* {3 4 origin} */
+
+Slice j = json_marshal(a, BURROW_ANY(Point, &p), &err);
+/* {"x":3,"y":4,"label":"origin"} */
+
+Point q = {0};
+err = json_unmarshal(a, j, BURROW_ANY(Point, &q));
+```
+
+That is the target ergonomic, and it is within a line or two of Go.
+
+Companion macros cover the rest of the type space:
+
+```c
+BURROW_STRUCT(T, FIELDS)          /* struct + descriptor */
+BURROW_ENUM(T, VALUES)            /* named integer type + value names, for %v */
+BURROW_ALIAS(T, Underlying)       /* named type over an existing one, with methods */
+BURROW_SLICE_TYPE(T)              /* descriptor for []T */
+BURROW_MAP_TYPE(K, V)
+BURROW_PTR_TYPE(T)
+BURROW_METHOD(T, Name, fn)        /* registers a method + thunk */
+BURROW_IMPLEMENTS(T, FmtStringer, adapter)
+```
+
+Every one of `burrow`'s own ~1,900 public struct types is declared this way, so
+the DSL is exercised across the entire library before any user sees it. If it
+is awkward, we find out at scale and early.
+
+**Ugliness, acknowledged.** The `F(...)` list form is not idiomatic C and it is
+the least attractive thing in the whole design. It buys: zero build steps, zero
+external tools, amalgamation compatibility, no possibility of drift, and
+descriptors in rodata with no runtime registration cost. That trade is worth
+making, and §4 gives the alternative to anyone who disagrees.
+
+## 4. The generator, for people who want plain structs
+
+```c
+/* burrow:reflect */
+typedef struct {
+    Int X    BURROW_TAG("json:\"x\"");
+    Int Y    BURROW_TAG("json:\"y\"");
+    Str Label BURROW_TAG("json:\"label,omitempty\"");
+} Point;
+```
+
+`burrow-gen reflect src/*.h -o src/reflect_gen.c` parses these with libclang
+and emits the descriptors. Natural declarations, one build step, one heavy
+build-time dependency (libclang) that is *not* required to build `burrow`
+itself or to use the DSL.
+
+Both paths produce byte-identical descriptors, and the same test suite runs
+against both. Neither is deprecated; the DSL is the default because of the
+no-build-step promise, and the generator exists because a large existing
+codebase will not rewrite its structs.
+
+A third path for the truly reluctant: **`burrow-gen reflect --from-go`**
+ingests a Go type declaration and emits both the C struct and its descriptor.
+For someone porting a Go program, this is the natural direction of travel, and
+it is the same machinery the conformance harness uses to translate Go's tests.
+→ [14](14-conformance.md) §3
+
+## 5. Registration and type identity
+
+Descriptors are static, so there is nothing to register for reflection to work
+on a value you hold. A registry exists for two narrower purposes:
+
+- **Name → type lookup**, needed by `encoding/gob` (which encodes type names on
+  the wire), `net/rpc`, and `template`'s `.Method` calls.
+- **Type identity across translation units**, so that `type_of(Point)` in
+  two `.c` files is the same pointer. Handled by making descriptors
+  `extern const` with a canonical definition emitted once, plus a `hash` field
+  for cases where pointer identity cannot be relied on (shared libraries).
+
+```c
+BURROW_REGISTER_TYPE(Point);                    /* file scope; gob/rpc need this */
+const Type *t = type_by_name(BURROW_S("main.Point"));
+```
+
+The registry is write-once during static init (via a linker-section trick on
+ELF/Mach-O/PE, with an explicit `types_init()` fallback for wasm and
+Cosmopolitan), then read-only and lock-free. → [03](03-c-dialect.md) §5
+
+## 6. Methods and dynamic calls
+
+The two genuinely hard capabilities, scoped down to what the library actually
+needs.
+
+**Method enumeration** is data: `BURROW_METHOD` appends to the type's method array.
+
+**Dynamic invocation** needs a call with a signature known only at runtime.
+Full generality requires libffi, which is a dependency we have refused. The
+resolution is *thunks*: `BURROW_METHOD` emits a small generated wrapper with a
+fixed signature that unpacks a `void **args` array and calls the real method:
+
+```c
+static void Point_String_thunk(void *recv, void **args, void **rets) {
+    (void)args;
+    *(Str *)rets[0] = Point_String((Point *)recv);
+}
+```
+
+Generated by the macro, so the user writes nothing. This covers every call
+`reflect.Value.Call` needs to make *on a registered method*, which is every
+call `net/rpc` and `text/template` make.
+
+What it does not cover is `reflect.MakeFunc` — synthesising a function pointer
+with an arbitrary signature that C code can call directly. That genuinely
+requires runtime code generation or libffi. Decision: `reflect_make_func`
+returns a `Func` usable from `burrow` (via the thunk protocol) but **not** a
+raw C function pointer, and returns `reflect_err_no_trampoline` if a raw
+pointer is requested. An optional `BURROW_ENABLE_LIBFFI=1` build lifts the
+restriction for users who want it. This affects `testing/quick`'s
+`quick.Check` on function values and nothing else in the stdlib.
+
+## 7. The boundary, stated plainly
+
+> **`reflect` is complete over types declared with `BURROW_STRUCT`/`BURROW_ENUM`/…
+> or generated by `burrow-gen`. It cannot see an arbitrary, undeclared C
+> struct, because that information does not exist in a C binary.**
+
+`reflect_type_of` on an unknown pointer does not guess. `Any` carries an
+explicit descriptor, so there is no way to construct one without a descriptor
+in the first place — the failure is caught at the construction site, at compile
+time, rather than deep inside `json.Marshal`:
+
+```c
+Any bad = BURROW_ANY(SomeUndeclaredStruct, &x);
+/* compile error: no type_of(SomeUndeclaredStruct) */
+```
+
+That is the right failure mode. The user adds four lines of `BURROW_STRUCT` and
+moves on. Compare the alternative — a runtime "cannot reflect on this type"
+error at the bottom of a call stack — and the compile-time failure is clearly
+better, which makes this limitation substantially less painful in practice than
+it sounds in the abstract.
+
+For the specific case of **marshalling a type you cannot modify** (a third-party
+struct), three escapes, in order of preference: declare a descriptor separately
+with `BURROW_STRUCT_EXTERNAL(T, FIELDS)` which emits only metadata against an
+existing declaration; implement `json.Marshaler` by hand, which needs no
+reflection at all; or use `jsontext` (Go 1.27's streaming token API) directly,
+which is reflection-free by design and is one of the reasons `encoding/json/v2`
+is a welcome addition here.
+
+## 8. Struct tags
+
+Go's struct tags are a convention over a string, parsed by each consumer. We
+port `reflect.StructTag`'s `Get`/`Lookup` exactly, and the tag string format is
+identical, which means **every Go struct tag in existing code works unchanged**
+— `json:"name,omitempty"`, `xml:"ns url"`, `db:"col"`, `validate:"required"`.
+This is a small detail with a large effect on how portable a port feels.
+
+## 9. Ordering, and the gate
+
+`reflect` blocks `fmt`, and `fmt` blocks everyone's ability to debug anything,
+so this is the first Tier 0 subsystem after the core types. Sequence:
+
+1. `Type` and the ops table; primitive descriptors.
+2. `BURROW_STRUCT`/`BURROW_ENUM`/`BURROW_ALIAS` macros; `offsetof` correctness tests on all
+   Tier A platforms (padding and alignment differ, and this is where
+   big-endian s390x earns its CI slot).
+3. `reflect`'s read side: `TypeOf`, `ValueOf`, `Kind`, `Field`, `Len`, `Index`,
+   `MapKeys`, `Interface`, `String`.
+4. `fmt`'s `%v`, `%+v`, `%#v`, `%T`. **This is the gate for Tier 0.**
+5. `reflect`'s write side: `Set*`, `New`, `MakeSlice`, `MakeMap`, `Append`,
+   `Elem`, `Addr`, `CanSet`.
+6. `encoding/json` round-trip on a nested struct with tags, slices, maps and
+   pointers. **This is the gate for Tier 1's format packages.**
+7. Methods, thunks, `Value.Call`. Unblocks `net/rpc` and `text/template`.
+8. The libclang generator; differential test that it produces identical
+   descriptors to the DSL.
+
+Step 4 is the milestone that makes the project feel real: once
+`fmt_printf("%+v", myStruct)` prints what Go would print, byte for byte,
+the reflection design is proven and 40 packages become unblocked at once.
+
+## 10. Cost accounting
+
+The thing to check is that we have not accidentally built something
+unaffordable for the embedded use case that motivates C in the first place.
+
+| | Cost |
+| --- | --- |
+| Per type declared | ~64 bytes descriptor + ~40 bytes per field, all rodata |
+| Per method registered | ~40 bytes + a ~30-byte thunk, in text |
+| Runtime registration | zero for reflection; one linker-section walk for the name registry |
+| `reflect` code size | ~40 KB, and **only if linked** |
+| If you never use reflection | descriptors for unused types are dropped by `--gc-sections`; `reflect`, `fmt`'s `%v` path, `json` all absent |
+| `fmt.Printf("%d", n)` without reflection | a `BURROW_PRINT_NO_REFLECT` build gives a printf-alike with no descriptors at all, ~6 KB |
+
+The last row matters: a firmware user who wants `strings`, `time` and
+`encoding/hex` pays nothing for any of this, because the amalgamation generator
+never emits it. → [15](15-build-deploy.md) §5

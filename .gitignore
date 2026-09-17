@@ -1,0 +1,37 @@
+# Build output. The tree builds out of source, into build/, and nothing else
+# is supposed to appear anywhere.
+build/
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.obj
+*.lib
+
+# The generated amalgamation. It is a release artefact, produced by
+# tools/burrow-gen, and checking it in would give us two sources of truth that
+# differ on a Tuesday.
+/burrow.c
+/burrow.h
+/burrow-crypto.c
+/burrow-documented.h
+dist/
+
+# Fuzzing. Corpora live in burrow-conformance, crashes are triaged and then
+# either fixed or committed there as a regression case.
+fuzz/corpus/
+fuzz/crashes/
+*.profraw
+*.profdata
+
+# Editors and platforms.
+.DS_Store
+.vscode/
+.idea/
+*.swp
+compile_commands.json
+.cache/

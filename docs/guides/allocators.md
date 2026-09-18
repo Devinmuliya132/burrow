@@ -42,6 +42,8 @@ The cost is one extra parameter on a lot of functions. The benefit is that you c
 
 ## The five allocators
 
+Three of these exist today. `gc` and `track` are described here because the interface they plug into is finished and they change nothing about how you write your code, but they are still open items on [P0](https://github.com/tamnd/burrow/issues/1).
+
 ### arena
 
 The default, and the one to use unless you have a reason not to.
@@ -153,13 +155,7 @@ The annotations expand to nothing, and they are not decoration. The documentatio
 
 Inside burrow, a failed allocation becomes an `Error` that travels back up through the normal error return, the same as any other failure. Callers check errors and this is one more reason an error might be there.
 
-If you would rather crash than check, which is a reasonable choice for a command line tool, wrap the allocator:
-
-```c
-Alloc *a = mem_abort_on_failure(heap_allocator());
-```
-
-That is your decision to make and it stays in your code.
+If you would rather crash than check, which is a reasonable choice for a command line tool, write six lines of wrapper around the allocator you are using and crash in its `alloc`. That is your decision to make and it stays in your code, which is exactly where it belongs.
 
 ## Writing your own
 

@@ -4,7 +4,9 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.6 (2026-09-18)
+
+Text. A Go string holds bytes, and this is the release where reading those bytes as UTF-8 arrives, along with the range loop that is how almost everybody does it.
 
 ### Runes and UTF-8
 

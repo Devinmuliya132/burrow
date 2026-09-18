@@ -106,33 +106,11 @@ Byte str_at(Str s, Int i) {
     return s.p[i];
 }
 
-StrIter str_runes(Str s) {
-    StrIter it = {s, 0};
-    return it;
-}
-
-bool str_next_rune(StrIter *it, Int *index, Rune *r) {
-    Int start = it->i;
-    Int size;
-    Rune got;
-
-    if (start >= it->s.len)
-        return false;
-
-    /* The ASCII case by hand rather than through the decoder. Go's range loop
-     * does the same thing and for the same reason: it is the case almost every
-     * loop takes, and it is a compare and a load against a table lookup and a
-     * call. */
-    if (it->s.p[start] < (Byte)UTF8_RUNE_SELF) {
-        got = (Rune)it->s.p[start];
-        size = 1;
-    } else {
-        Str rest = {it->s.p + start, it->s.len - start};
-        got = utf8_decode_rune_in_string(rest, &size);
-    }
-
-    it->i = start + size;
-    BURROW_OUT(index, start);
-    BURROW_OUT(r, got);
-    return true;
+/* Everything the rune loop cannot do inline, which is one rune of two bytes or
+ * more. The ASCII path is in core.h, so by the time anything gets here the
+ * first byte is known to be 0x80 or above and the decoder is going to have to
+ * do real work regardless of what this call costs. */
+Rune burrow__str_next_rune_slow(Str s, Int i, Int *size) {
+    Str rest = {s.p + i, s.len - i};
+    return utf8_decode_rune_in_string(rest, size);
 }

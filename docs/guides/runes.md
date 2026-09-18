@@ -153,6 +153,4 @@ This is how you back up to a character boundary after seeking into a file at an 
 
 ## What is not here yet
 
-The eight bytes at a time ASCII skip inside `utf8_valid_string`. Go reads a word at a time through a run of ASCII rather than a byte at a time, which is worth real time on long mostly ASCII input, and it needs the unaligned load and the endianness question answered in the platform layer first. The behaviour is identical either way and there is a benchmark waiting for it in [burrow-bench](https://github.com/tamnd/burrow-bench).
-
 `unicode/utf16` is the other half of this and it is not ported yet. `unicode` itself, with the character class tables, is a larger job and is scheduled with the rest of the pure packages.

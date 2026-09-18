@@ -156,10 +156,19 @@ then checked against Go directly with 200,000 random byte strings through both
 implementations, comparing every function's output and the full range-loop
 transcript. They agree byte for byte.
 
-One optimisation is deliberately absent. Go's `Valid` skips runs of ASCII a
-machine word at a time; that needs the unaligned load and the endianness
-question settled in the platform layer, and it belongs there rather than
-copied into this file. The behaviour is identical without it.
+One optimisation was deliberately left out of the first version and then put
+back, and the reason it was left out was wrong, which is worth recording.
+
+Go's `Valid` skips runs of ASCII a machine word at a time. That was deferred on
+the grounds that reading a word at a time needs an unaligned load and an answer
+to the endianness question, and that both belong in the platform layer rather
+than copied into this file. Neither is true of Go's version. Go builds the word
+out of eight separate byte loads shifted into place, which is defined on a
+machine that faults on unaligned access and computes the same number whichever
+way the machine orders its bytes, and which gcc and clang both fold back into a
+single load. The reason Go writes it that way is exactly to avoid needing a
+platform layer for it. Ported as written it is portable C, and the benchmark
+that was waiting for it went from thirty-nine times Go's time to level.
 
 `unicode/utf16` is next and is the same size of job.
 

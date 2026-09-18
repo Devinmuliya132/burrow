@@ -12,6 +12,8 @@
 #include "burrow/slice.h"
 #include "burrow/type.h"
 
+#include <string.h>
+
 /* The port is close to the letter, because this package is a table and a set of
  * comparisons against it and there is nothing to gain by rearranging either.
  * The one structural change is that Go's two copies of every function, one for
@@ -361,12 +363,41 @@ bool utf8_rune_start(Byte b) {
     return (b & 0xC0) != 0x80;
 }
 
-/* Valid is a decode loop with the rune thrown away, which is what Go's is once
- * the eight bytes at a time ASCII skip is taken out of it. That skip is worth
- * having and it is not here yet: it reads a word at a time and needs the
- * unaligned load and the endianness question answered first, both of which
- * belong in the platform layer rather than in a copy inside this file. There is
- * a benchmark waiting for it in burrow-bench. */
+/* One machine word of bytes, however many that is here.
+ *
+ * memcpy rather than a cast and a load through the pointer, because the input
+ * is somebody else's buffer at an arbitrary offset and reading a uintptr_t
+ * through a Byte * that happens to be odd is undefined behaviour rather than
+ * merely slow. Every compiler worth using turns a memcpy of a fixed word size
+ * into the single load it is, and none of them call anything.
+ *
+ * Byte order does not come into it, which is worth saying out loud because a
+ * function that reads several bytes as one number normally has to care. The
+ * only question anybody asks of this value is whether HI_BITS is set anywhere
+ * in it, and HI_BITS has the same bit set in every byte, so the answer does not
+ * depend on which end the machine started from.
+ *
+ * Go writes this helper out of separate byte loads and shifts instead, because
+ * Go has no memcpy that the compiler is guaranteed to see through and because
+ * it wants to stay out of unsafe. Ported literally that costs real time: gcc
+ * merges the shifts back into one load when there is a single word in the
+ * expression, and gives up when two of them are combined, which is exactly what
+ * the wider skips below do. On four kilobytes of ASCII the literal port
+ * measured 979 nanoseconds against Go's 151, and this measures 173. */
+#define WORD_BYTES ((Int)sizeof(uintptr_t))
+#define HI_BITS ((uintptr_t)(0x8080808080808080ULL >> (64 - 8 * sizeof(uintptr_t))))
+
+static inline uintptr_t word(const Byte *s) {
+    uintptr_t w;
+    memcpy(&w, s, sizeof w);
+    return w;
+}
+
+/* Valid is a decode loop with the rune thrown away, plus the one thing that
+ * makes it quick on real input: a run of ASCII goes past a word at a time
+ * instead of a byte at a time. Almost every string a program validates is
+ * mostly or entirely ASCII, so that skip is not a micro optimisation, it is the
+ * difference between this function costing something and costing nothing. */
 static bool valid(const Byte *p, Int n) {
     Int i = 0;
 
@@ -377,6 +408,27 @@ static bool valid(const Byte *p, Int n) {
 
         if (p[i] < (Byte)UTF8_RUNE_SELF) {
             i++;
+            /* If there is one ASCII byte there are probably more, so look
+             * ahead. One word, then two, then four at a time, which ramps up so
+             * that a short string never pays for the wide test it would fail.
+             *
+             * The comparisons are > rather than >=, which is deliberate and is
+             * Go's. It keeps every one of these reads strictly inside the input
+             * with a byte to spare, so there is no fixup for the last word and
+             * no read one past the end. */
+            if (n - i > WORD_BYTES && (word(p + i) & HI_BITS) == 0) {
+                i += WORD_BYTES;
+                if (n - i > 2 * WORD_BYTES &&
+                    ((word(p + i) | word(p + i + WORD_BYTES)) & HI_BITS) == 0) {
+                    i += 2 * WORD_BYTES;
+                    while (n - i > 4 * WORD_BYTES &&
+                           (((word(p + i) | word(p + i + WORD_BYTES)) |
+                             (word(p + i + 2 * WORD_BYTES) |
+                              word(p + i + 3 * WORD_BYTES))) &
+                            HI_BITS) == 0)
+                        i += 4 * WORD_BYTES;
+                }
+            }
             continue;
         }
 

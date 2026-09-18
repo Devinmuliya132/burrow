@@ -4,7 +4,9 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.9 (2026-09-19)
+
+Where a goroutine stack comes from. One mapping with an unreadable page underneath it, and a handler that turns a landing on that page into `fatal error: stack overflow` instead of a segmentation fault with nothing to go on. It is the last piece the scheduler needs before there is something to schedule.
 
 ### Stacks
 
@@ -21,7 +23,7 @@ Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a mileston
 - The tests allocate at both ends of the size range and write every byte between `lo` and `hi` in both directions, which is how an off by one page in the mapping would show up. Two of them cause a real fault and come back from it: one pokes the byte below `lo`, the other runs a context that recurses until it runs off the bottom. Both run on a thread of their own, so leaving a handler by `siglongjmp` never leaves the main thread marked as still on its signal stack, and both are skipped under the sanitizers, which install handlers of their own and are entitled to.
 - The overflow test is also skipped where a context is a fiber, which today means Windows. A fiber brings its own stack, so the recursion runs off the end of that one and hits the operating system's guard page rather than this library's, and the handler correctly decides the fault is none of its business. There is nothing to test there until Win64 assembly puts a goroutine on a stack from this file. The guard test still runs and covers the vectored handler itself.
 - The recursion in that test reads a local after the recursive call rather than adding to the result before it. gcc at `-O2` on arm64 turns `something + f(n + 1)` into a loop with an accumulator and no frames in it, which then never reaches the guard and never returns either, so the first version of the test did not overflow a stack, it hung. There is also a depth limit far past what the stack has room for, so a build where this stops faulting fails the test instead of spinning until somebody kills it.
-- Checked on macOS arm64, on Linux glibc and musl on both amd64 and arm64, on 32 bit x86, under AddressSanitizer, UndefinedBehaviorSanitizer and ThreadSanitizer, and on Windows with mingw gcc 16.
+- Checked on macOS arm64, on Linux glibc 2.36 and 2.41 and musl on both amd64 and arm64, on 32 bit x86, under AddressSanitizer, UndefinedBehaviorSanitizer, ThreadSanitizer and MemorySanitizer, with the portable ucontext backend forced on, and on Windows with mingw gcc 16.
 
 ## v0.0.8 (2026-09-19)
 

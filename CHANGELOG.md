@@ -4,7 +4,7 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.14 (2026-09-19)
 
 Channels. The thing goroutines exist in order to talk to, and the reason the scheduler had `sched_park` and `sched_ready` in it before there was anything to use them.
 

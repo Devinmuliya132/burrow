@@ -4,6 +4,16 @@
 # build-portable/ next to build/ is how the context switch gets checked both
 # ways, and CI does the same thing under the same names.
 build*/
+# The short names a sanitiser run or a second machine ends up with, because
+# BUILD=build-asan is a lot to type forty times and the shortening is what
+# actually happens. These are ignored for the same reason build*/ is, and they
+# are listed rather than globbed on b* so that a real directory starting with a
+# b is not swallowed silently.
+b[0-9]/
+b-asan/
+b-tsan/
+b-msan/
+b-ubsan/
 *.o
 *.a
 *.so

@@ -4,7 +4,13 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.12 (2026-09-19)
+
+Timers, both halves. The machine underneath is a set per P with a four way heap in each, which is Go's design down to the number of children per node, and on top of it sit the three calls a program actually makes: `time_sleep`, `time_after_func`, and the stop and reset that go with a timer once you have one.
+
+A stop marks the timer rather than pulling it out of the heap, which sounds like a shortcut and is the whole point. A connection that moves its read deadline on every read touches the heap once and never again, and the benchmark says so: resetting and stopping a timer costs the same whether there is one other timer in the heap or a thousand.
+
+Writing the tests for this found a scheduler hang that had nothing to do with timers and everything to do with deadlines existing at all. A thread going idle put itself on the idle list and then waited on its note, and a note is allowed to be open with nobody waiting on it, so a wake could land before the sleeper reached the wait and be lost. Go never sees this because in Go a thread is only ever woken while being handed a P. The idle list is the state now and the note is the nudge.
 
 ### Time
 
@@ -35,6 +41,8 @@ Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a mileston
 - `tests/time_test.c` is the user facing calls on the real scheduler and the real clock. It is what found the idle list bug above, and it found it by hanging rather than by failing, which took a watchdog and a dump of every thread's state to get to the bottom of.
 - One test in it started out asserting the order three sleepers came back in, and that is scheduling order rather than timer order, so it failed on a four core virtual machine and deserved to. It measures each sleeper's own wait now. The heap's ordering is tested in `tests/timer_test.c` on a clock the test drives, where the answer does not depend on anything else the machine is doing.
 - Both contended run queue tests now wait for every thief thread to be in its steal loop before the owner starts. Starting a thread is a request, and on a machine with as many busy threads as cores it can take longer to be granted than the owner's whole loop takes to run, which left the check that says at least one steal succeeded failing for a thread that was never given a core rather than for a broken steal.
+- The check itself was also wrong, which the barrier only made rarer. A thief backs off on purpose before it touches a running victim's `runnext`, because the goroutine in that slot is the one the victim is about to run, so on a round where the owner does nothing but yield the owner is supposed to win. Asking afterwards whether any steal succeeded was asking the scheduler to be worse at its job, and it failed four times in about 186 runs on a four core box under a load average of sixty.
+- It counts the rounds where the owner's own get came back empty instead, which on this queue can only mean a thief took the goroutine, and it keeps going for up to two seconds until it sees one. That is a race free count read from the owner's side while the test is running, rather than a plain word read after the join when it is too late to wait. Five hundred runs on an idle six core machine, three hundred on the loaded four core one and two hundred on Windows, with nothing red.
 
 ### Docs
 

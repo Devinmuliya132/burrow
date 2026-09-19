@@ -4,7 +4,9 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.10 (2026-09-19)
+
+The scheduler. G, M and P, the three run queues, work stealing, and the outside of it all in `burrow/proc.h`, so a program can call `go` and mean it. There is no timer, no netpoller and no preemption yet, so a goroutine that neither blocks nor yields still holds its thread, which is the same bug Go had before asynchronous preemption and is the next few changes here. AddressSanitizer also learned that a thread can change stacks, which it had been quietly wrong about since the context switch landed.
 
 ### Scheduler
 
@@ -36,7 +38,7 @@ Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a mileston
 
 ### Sanitizers and the stack switch
 
-- AddressSanitizer is now told when a thread changes stacks. Every switch calls `__sanitizer_start_switch_fiber` on the way out and the matching finish on the way in, so the sanitizer's idea of where the thread is follows the thread instead of staying on the stack it started on. What this fixed in practice is a warning on Linux that said `ASan is ignoring requested __asan_handle_no_return` with a stack size of about minus fifty three megabytes, which was ASan measuring the thread's real stack against a goroutine's stack pointer.
+- AddressSanitizer is now told when a thread changes stacks. Every switch calls `__sanitizer_start_switch_fiber` on the way out and the matching finish on the way in, so the sanitizer's idea of where the thread is follows the thread instead of staying on the stack it started on. What this fixed in practice is a warning on Linux that said `ASan is ignoring requested __asan_handle_no_return` with a stack size of minus four terabytes, which was ASan measuring the thread's real stack against a goroutine's stack pointer.
 - A context now carries the bounds of its stack in a sanitizer build, because the call has to be handed them before the switch rather than after. A thread's own context is the one case where nobody knows those bounds, and asking the operating system is a different question on every platform, so instead the first switch away from a thread fills them in: the finish call on the far side answers with the bounds of the stack that was just left.
 - ThreadSanitizer is deliberately not told, and there is a paragraph in `burrow/context.h` arguing for it. Its fiber API allocates a whole thread state per fiber, with a shadow stack and a trace buffer each, and the implementation holds a few hundred of those before it starts reclaiming slots by stopping the world. A test program that starts about five hundred goroutines slows to nothing and then stops answering. Until that gets cheaper, ThreadSanitizer sees one shadow stack per thread with goroutines interleaved on it, which makes some traces odd to read and has not stopped it finding real races.
 - `burrow__context_switch` is now a small inline wrapper in the header around `burrow__context_switch_raw`, which is the assembly, or the swapcontext, or the fiber switch. The annotations go in the wrapper. With no sanitizer on it is the same one call into the assembly that it was before.

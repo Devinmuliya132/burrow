@@ -4,7 +4,13 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.11 (2026-09-19)
+
+The monotonic clock and the timed sleep that goes on top of it, which is the first half of timers. Both are the ones Go has, `nanotime` and `notetsleep`, and the second one waits on the first rather than on the wall clock, so nothing anybody does to the system time can make a timeout fire early or late.
+
+The note itself got faster while that was going in. A wake used to go into the kernel every time, including when nobody was waiting, which is the common case in a scheduler. Notes count their sleepers now and a wake with nobody in the count stays in user space, which took the uncontended cycle from 352 nanoseconds to 11 on an EPYC, against 15 for the `sync.WaitGroup` it is measured against.
+
+v0.0.10 has a tag and no release. Its publish step failed on a Windows warning that was already there, and by the time that was fixed this release was the one worth cutting.
 
 ### Runtime
 
@@ -16,9 +22,18 @@ Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a mileston
 - All three backends recompute what is left of the timeout each time round rather than waiting the full amount again, so a sleep interrupted nine times still waits the length it was asked for. Each individual wait is capped at a thousand seconds, which costs one extra system call every quarter of an hour and makes every conversion out of nanoseconds something that cannot overflow.
 - The timed sleep reads the note before it reads the clock. The caller is a thread that has just failed to find work and is parking with a deadline on it, and by then the wake it was racing has usually already landed, so the common path returns without asking what time it is and without touching the mutex on the portable backend. The Windows backend gets there differently: a wait on an open event returns straight away, so the first wait is the check and there is nothing to add in front of it.
 - A note counts the threads that are about to sleep on it, in a word next to the open flag, and a wake with nobody in that count stays in user space. On Linux that is a futex call not made, on Windows a `SetEvent` not made, and on the portable backend a mutex not taken and a broadcast not shouted into an empty room. Pinned on an EPYC, opening a gate nobody was standing at and walking through it went from 352 nanoseconds to 11, against 15 for the `sync.WaitGroup` that burrow-bench measures it against. The timed version of the same thing went from 297 to 10. Go's runtime does not do this for its own notes and Go's `sync.WaitGroup` does exactly this, and a scheduler parks and unparks threads often enough that it matters.
+- The Linux backend of `burrow__note_init` set the gate and forgot the count next to it, so every wake on a fresh note read memory nobody had written. Caught by the memory sanitiser after the change had been through macOS, Windows, four compilers, both other sanitiser sets, musl, i386, s390x and aarch64 without a word. The behaviour was right by accident on all of them, because stack memory is nearly always zero and a count of rubbish is still a count that is not zero.
 - Nothing is given up for that count. A sleeper joins the count and then reads the flag, a waker sets the flag and then reads the count, and all four of those are sequentially consistent, so every thread agrees on one order for them and in any such order the two writes cannot both come after the two reads. One of the two always sees the other, and the sleeper that loses the race finds the gate open and does not wait at all.
 - The count is a second word rather than spare bits in the flag. A futex compares the word it is given against the value the caller expected and returns rather than sleeping when they differ, so a shared word would mean every thread arriving at the gate woke every thread already asleep there, and a crowd of sixty four would wake each other a few thousand times on the way in for nothing.
 - `burrow__note_is_open` on Windows no longer asks the kernel. It was a wait of zero milliseconds on the event, which is the documented way to read an event's state and is also a system call to read one bit. It reads the word now.
+
+### Build and CI
+
+- MSVC counts `_Alignas` on a member as warning C4324 and `/WX` turns that into an error, which had the Windows job red. The padding it is warning about is deliberate: `P` puts its run queue head and tail on separate cache lines so a thief and an owner do not fight over one. gcc and clang do not mention it.
+- clang-tidy counts `_POSIX_C_SOURCE` as a reserved identifier, which it is, the same way `_XOPEN_SOURCE` already named in that list is. Being reserved is the point of a feature macro and there is no other spelling.
+
+### Tests
+
 - The four thread test for the clock checks cross thread agreement by reading the highest published reading before taking its own, rather than by comparing one thread's first reading against another's last. The second version assumes the threads overlap, and on Linux, where the clock reads through the vdso, twenty thousand readings are done before the fourth thread exists.
 
 ## v0.0.10 (2026-09-19)

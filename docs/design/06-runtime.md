@@ -623,10 +623,11 @@ rest in one allocation that doubles as it fills and is freed before the scope
 returns, which is the trade Go makes for the defers it cannot open-code into a
 frame. Eight is the number Go's compiler stops open-coding at, and it was four
 here until burrow-bench priced the fifth call at a hundred nanoseconds against
-sixty four bytes of never initialised frame for the four slots that fill it. The obvious cheaper layout is one record per defer, declared where the
-defer is written, and it is wrong for a reason that takes a sanitizer to
-notice. Those records sit between the caller's braces, the calls run after that
-block has ended, and an object's lifetime in C ends with the block that declares
+sixty four bytes of never initialised frame for the four slots that fill it.
+The obvious cheaper layout is one record per defer, declared where the defer is
+written, and it is wrong for a reason that takes a sanitizer to notice. Those
+records sit between the caller's braces, the calls run after that block has
+ended, and an object's lifetime in C ends with the block that declares
 it, so the scope would be reading storage the compiler is entitled to have
 reused. The address sanitizer calls it a stack use after scope and it was right.
 

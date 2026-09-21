@@ -4,7 +4,11 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.15 (2026-09-21)
+
+`select`, which is the last piece of the channel work and the thing that makes a goroutine able to wait on more than one conversation at once. `chan_select` because POSIX has owned the short name since 1983.
+
+The other half of this release is a thread sanitizer that works. The `tsan` job in CI had been red since before there was a runtime for it to have an opinion about, and it was not reporting races, it was dying inside the sanitizer, because a goroutine that parks on one thread and resumes on another leaves the call stack the sanitizer keeps per thread in a state it has no way to understand. Telling it about the switch is a few lines. Working out that it had to be told, and which of two compiler attributes each compiler actually honours, was most of a day. What it bought is real: the two bugs below it found afterwards are a use after free in shutdown and a test that had been lying about a race it did not have.
 
 ### Runtime
 

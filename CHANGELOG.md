@@ -4,7 +4,7 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.18 (2026-09-21)
 
 The runtime's own failures are catchable now. An index past the end of a slice, a write to a nil map, a send on a closed channel, a divide by zero and the rest of the conditions Go panics on panic here too, instead of printing a line and ending the process, so a program can put a `BURROW_TRY` around a piece of work and survive one the way a Go program survives its own.
 

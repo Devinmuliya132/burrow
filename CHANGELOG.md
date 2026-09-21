@@ -4,7 +4,7 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.17 (2026-09-21)
 
 `panic` and `recover`, which is the other half of the failure story and the half the docs have been promising since the first page of them. A panic unwinds the open scopes, running their deferred calls innermost first, and lands in the nearest catch block. Unrecovered, it prints the value and ends the process with status 2, the same as Go.
 

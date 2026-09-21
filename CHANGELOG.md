@@ -4,7 +4,13 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.16 (2026-09-21)
+
+`defer`, which is the first half of the failure story the library has been promising since the first page of docs. It is a block rather than a bare statement, because the bare form works on GCC and Clang and silently does nothing on MSVC, and a feature that is missing on one of three supported platforms without saying so is worse than one that costs a line everywhere. The chain of open scopes belongs to the goroutine, so a goroutine that parks in the middle of a scope and wakes up on another thread still has its cleanups, and `runtime_goexit` runs all of them on the way out.
+
+The scope holds its deferred calls itself, which is the part that took two attempts. One record per defer in the frame that wrote it is cheaper and is wrong, because the calls run after that block has ended and a C object's lifetime ends with its block, and the address sanitizer said so before anything shipped. burrow-bench then said the scope should hold eight of them rather than four, since the fifth was a trip through the allocator and the four unused slots are bytes in a frame and no time at all.
+
+`panic` and `recover` are the other half and they are next. Until they land, the things that will panic take the fatal path, with the message text they will keep.
 
 ### Runtime
 

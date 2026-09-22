@@ -20,8 +20,8 @@ extern "C" {
 
 #define BURROW_VERSION_MAJOR 0
 #define BURROW_VERSION_MINOR 0
-#define BURROW_VERSION_PATCH 29
-#define BURROW_VERSION_STRING "0.0.29"
+#define BURROW_VERSION_PATCH 30
+#define BURROW_VERSION_STRING "0.0.30"
 
 /* An ordered integer, so a preprocessor conditional can ask for a version the
  * way sqlite3's SQLITE_VERSION_NUMBER lets you. Major, minor and patch get two

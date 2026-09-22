@@ -4,7 +4,9 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.27 (2026-09-22)
+
+A type can carry its methods and be called through one by name, a field's struct tag can be read the way Go reads it, and a plain C struct can get a descriptor without anybody rewriting it.
 
 ### A generator, for structs nobody is going to rewrite
 

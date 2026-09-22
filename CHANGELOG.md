@@ -4,7 +4,9 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
-## Unreleased
+## v0.0.24 (2026-09-22)
+
+The netpoller, which is what lets a goroutine block on a descriptor without holding an OS thread, on all three platforms.
 
 ### Build
 

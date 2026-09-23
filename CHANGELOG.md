@@ -4,6 +4,15 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.31 (2026-09-23)
+
+A scheduler fix for goroutines that change threads, the context switch in C files, and main green on every CI job.
+
+- A goroutine that was moved to another thread at a safe point could read the M of the thread it had left, because the compiler reuses the address of a thread local variable for the whole of a function. `go_start` hit this and pushed onto another thread's free list. The current M is now read through an out of line call, so it is always the thread that is running.
+- The amd64 and arm64 context switches are top level `__asm__` in `mcontext_amd64.c` and `mcontext_arm64.c`. There are no `.S` files left, so the Makefile and CMake build only C, which is what the single file amalgamation needs.
+- The goroutine snapshot behind `runtime_stack(buf, true)` retries its trylock a hundred times before giving up, because a goroutine in a tight gosched loop can win a single try every time.
+- MSVC builds put type descriptors in their section through a declspec that the linker keeps.
+
 ## v0.0.30 (2026-09-23)
 
 A panic prints function names instead of bare addresses, and a program can ask for the same traceback without crashing first.

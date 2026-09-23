@@ -4,6 +4,24 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.37 (2026-09-23)
+
+Launching a goroutine and switching between two of them both cost less than half what they did, which meets the P0 targets on amd64: about 29 million switches and 11 million launches a second on one core. Two races that TSan found along the way are fixed.
+
+### Faster
+
+- Launch and yield no longer take a lock or issue a seq_cst store. Status changes that publish a goroutine are release stores, except the move to waiting, which is half of a Dekker pair with the waker and stays seq_cst.
+- The goroutine count is kept per P, an idle P is only woken when one exists, and the timer check is skipped when no timer is armed.
+- The stack switch reloads mxcsr and the x87 control word only when they differ from the ones it is switching away from, and on amd64 it ends with a jump instead of a `ret`, so the return stack buffer stops mispredicting every switch.
+- In cycles on an AMD EPYC, against v0.0.36: launch 674 to 319, a yield pair 474 to 181, a channel handoff 671 to 502.
+
+### Fixed
+
+- `gosched` puts the goroutine on its own P's run queue now, so a scheduler that only ever yields could starve the global queue. Every 61st schedule looks there first, the same as Go, and a test starts a goroutine from a foreign thread while others yield in a loop and checks it runs.
+- Cancelling a context could read a child after its owner released it, because the child's done channel is closed from inside the loop over children. The loop holds a reference across the cancel now.
+- `time.Sleep` set its armed flag after the timer was reset, so a timer that fired straight away could wake a goroutine that then freed the sleeper before the flag was written.
+- Three context tests checked `done` once instead of waiting for it and failed about one run in ten under TSan.
+
 ## v0.0.36 (2026-09-23)
 
 The amalgamation can leave packages out, and every public name is now checked against the symbols of about 1,200 system libraries. Two functions are renamed because of what that check found.

@@ -4,6 +4,24 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.33 (2026-09-23)
+
+The code in the guides is now compiled and run, and doing that turned up examples that could never have worked.
+
+### Checked docs
+
+- `tools/burrow-gen doc` keeps each marked C block in the docs identical to a region of a program under `docs/examples`. With `--run` it builds each program against the amalgamation and compares what it prints with the `Output` comment at the bottom of the file. With `--sanitize` it adds ASan and UBSan, and `--sync` rewrites the blocks from the programs.
+- A block that can't be compiled is marked `<!-- not compiled: reason -->`, and the reason is required. Guides listed in `docs/examples/checked.txt` can't carry an unmarked C block.
+- CI runs the comparison in lint, and runs the programs under the sanitizers on Linux and macOS.
+- Seven guides are converted: synctest, defer, panic, failure, numbers, runes and time. That's 40 blocks from 19 programs.
+
+### Fixed in the docs
+
+- The defer guide called `os_open`, `os_file_close` and `mem_free_slice` and took an `Allocator`, and none of these exist. The same `mem_free_slice` line was in the `defer.h` header comment.
+- The numbers guide read `h` in its own initializer, and the runes guide declared `r` twice in one block.
+- The time guide's examples had an infinite loop, an ellipsis and an `err_no_memory` that doesn't exist, and it still said channels were the next thing being built.
+- The synctest guide had a broken code fence and a paragraph merged into a heading.
+
 ## v0.0.32 (2026-09-23)
 
 The whole library as two files you can drop into a build, and the tools that measure how much of Go is in them.

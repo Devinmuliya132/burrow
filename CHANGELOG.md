@@ -4,6 +4,18 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.39 (2026-09-23)
+
+The first two thirds of strconv are here: quoting, unquoting, integers and booleans, all checked against Go's own test tables. Errors now have somewhere to live that is not the caller's allocator, and math/bits is ported.
+
+### Added
+
+- `math/bits` in `burrow/math/bits.h`, the whole package, with compiler builtins where they exist and portable fallbacks that are tested on their own.
+- A per-goroutine error arena. A function that has to build an error, such as one that says which input failed, builds it with `error_allocator()` and needs no allocator from the caller. `error_mark` and `error_release` bound its lifetime in a loop, and `error_retain` copies an error out when it has to outlive the goroutine.
+- strconv quoting and unquoting: `Quote` and its ASCII, graphic and rune forms, the Append forms, `Unquote`, `UnquoteChar`, `QuotedPrefix`, `CanBackquote`, `IsPrint` and `IsGraphic`. The printable tables are generated from Go's `isprint.go`, and the tests check every code point against Go.
+- strconv integers and booleans: `ParseInt`, `ParseUint`, `Atoi`, `FormatInt`, `FormatUint`, `Itoa`, `AppendInt`, `AppendUint`, `ParseBool`, `FormatBool` and `AppendBool`, with `NumError` and `IntSize`. A parse error is a `StrconvNumError` in the error arena, built in one allocation, and only when you pass an error pointer.
+- Tests built with MSVC are compiled with `/utf-8`, so string literals mean the same bytes there as on every other compiler.
+
 ## v0.0.38 (2026-09-23)
 
 burrow now builds and passes its tests under Cosmopolitan. The coverage gate checks signatures as well as names. There is also a differential fuzzer that runs burrow and Go on the same inputs.

@@ -4,6 +4,27 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.41 (2026-09-23)
+
+The printing half of fmt is here. Scanning comes next, and fmt counts as done once it lands.
+
+### Added
+
+- fmt printing: `Printf`, `Sprintf`, `Fprintf`, `Appendf` and the Print and Println forms of each, with a `_v` macro for each one that takes the operands directly. Every verb and flag Go has is supported, along with argument indexes and the `%!d(string=x)` notes for operands that don't fit their verb.
+- Values print through their type descriptor, so structs, slices, arrays, pointers and maps print as Go prints them, with map keys sorted. `Format`, `GoString`, `Error` and `String` methods are called, and a method that panics prints a note in place of its value.
+- `fmt_errorf`, with `%w` wrapping one error or several so that `errors_is` and `errors_as` can see through the result.
+- 658 test cases generated from Go's `fmt_test.go` by `tools/gen-fmt.sh`, all matching Go byte for byte.
+- A guide in `docs/guides/fmt.md`, and a Printing section in the README.
+
+### Changed
+
+- Quoting takes ASCII bytes as they are, rather than sending each one through the UTF-8 decoder. `AppendQuote` went from 1.47x Go's time to 0.87x.
+- The amalgamation resolves a package's private header when it is included without a directory.
+
+### Fixed
+
+- `BURROW_ANY_OF` no longer trips gcc 13's `-Wmissing-braces` when it is used inside another initializer.
+
 ## v0.0.40 (2026-09-23)
 
 strconv is finished. Floats and complex numbers are in, every function is fuzzed against Go's, and the coverage gate counts the package as done.

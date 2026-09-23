@@ -4,6 +4,29 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.32 (2026-09-23)
+
+The whole library as two files you can drop into a build, and the tools that measure how much of Go is in them.
+
+### The amalgamation
+
+- `tools/burrow-gen amalgamate` writes `burrow.c`, `burrow.h` and a manifest with the SHA-256 of every input. Add `burrow.c` to a build and include `burrow.h`, and there is nothing else to install. Each pasted file keeps a `#line` back to where it came from, so compiler errors and debuggers name the real file.
+- Running it twice gives the same bytes, and CI checks that on Linux and macOS, along with the whole test suite built from the pair with `make AMALGAMATION=1` and a MinGW cross build.
+- Releases now publish `burrow-VERSION-amalgamation.tar.gz` and `.zip` next to the binaries.
+- `burrow/burrow.h` includes the concurrency headers too. Before, `go`, channels, sync and context were only reachable through their own headers.
+- `docs/guides/building.md` covers the two file build, make and CMake.
+
+### Measuring coverage
+
+- `tools/inventory.sh` prints a Go package's exported declarations, lines, test lines and dependency count, and with no arguments reproduces the totals in `docs/design/01-scope.md`.
+- `tools/burrow-coverage` maps every declaration in Go's API files to its C name and looks for it in the headers. Packages listed in `tools/coverage-done.txt` must be complete or CI fails. The list is `context`, `errors`, `sync`, `sync/atomic` and `unicode/utf8`.
+
+### API
+
+- `CancelFunc` and `CancelCauseFunc` are now `ContextCancelFunc` and `ContextCancelCauseFunc`, following the rule that package types carry the package. This breaks callers that name either type.
+- `synctest_sleep` is Go's `synctest.Sleep`, a sleep on the bubble's clock followed by `synctest_wait`.
+- `errors_as` is documented as Go's `errors.AsType` too, since it already returns the typed pointer.
+
 ## v0.0.31 (2026-09-23)
 
 A scheduler fix for goroutines that change threads, the context switch in C files, and main green on every CI job.

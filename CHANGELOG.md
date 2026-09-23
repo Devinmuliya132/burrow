@@ -4,6 +4,20 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.38 (2026-09-23)
+
+burrow now builds and passes its tests under Cosmopolitan. The coverage gate checks signatures as well as names. There is also a differential fuzzer that runs burrow and Go on the same inputs.
+
+### Added
+
+- A differential fuzzer in `fuzz/`. A Go program built as a C archive answers the same questions as burrow, and a libFuzzer driver fails on the first byte where the two answers differ. The first target covers all of unicode/utf8. `make fuzz` runs it, `make fuzz-replay` replays the committed corpus with any compiler, and CI does both against go1.27.1.
+- Cosmopolitan builds. The x86-64 test suite passes when built with cosmocc 4.0.2, and CI builds a hello world from the amalgamation as one fat binary, then runs it on Linux, macOS and Windows. For now there is no network poller under Cosmopolitan; #152 tracks a poll(2) backend.
+- `tools/burrow-coverage` compares the C prototype of every function and method in the gated packages with the Go signature it ports, not only its name. `tools/coverage-reshaped.txt` lists the 13 functions whose shape differs on purpose.
+
+### Fixed
+
+- `sync_wait_group_add` took an `int` delta. It takes an `Int` now, as Go's `Add(delta int)` does. The signature check found this.
+
 ## v0.0.37 (2026-09-23)
 
 Launching a goroutine and switching between two of them both cost less than half what they did, which meets the P0 targets on amd64: about 29 million switches and 11 million launches a second on one core. Two races that TSan found along the way are fixed.

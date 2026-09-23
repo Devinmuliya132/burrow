@@ -4,6 +4,26 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.42 (2026-09-23)
+
+fmt is finished. Scanning is in, and the coverage gate counts the package as done. This release also fixes the problems that turned CI red after v0.0.40, which is why v0.0.41 has a tag and no published release.
+
+### Added
+
+- fmt scanning: `Scan`, `Scanln`, `Scanf` and the `S` and `F` forms of each, with `_v` macros that take pointers directly. Scanning follows Go's rules for spaces, newlines, widths and verbs, and a type with a `Scan` method reads itself through `FmtScanState`.
+- 476 scan cases generated from Go's `scan_test.go` by `tools/gen-scan.sh`, each run over a string and through a reader that hands out one byte at a time.
+- `RuneFunc`, Go's `func(rune) bool`, and a public `burrow_type_Error` so that method signatures can name `Error`.
+- A Scanning section in `docs/guides/fmt.md`.
+
+### Changed
+
+- A goroutine's error arena is freed completely when the goroutine ends, the struct as well as its memory.
+
+### Fixed
+
+- A nil slice passed to the quote functions no longer adds an offset to a null pointer.
+- A gcc warning about an uninitialized receiver in `print.c`, clang-format differences in the strconv float files, and the clang-tidy 20.1 findings in fmt and strconv.
+
 ## v0.0.41 (2026-09-23)
 
 The printing half of fmt is here. Scanning comes next, and fmt counts as done once it lands.

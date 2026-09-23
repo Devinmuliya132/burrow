@@ -4,6 +4,21 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.36 (2026-09-23)
+
+The amalgamation can leave packages out, and every public name is now checked against the symbols of about 1,200 system libraries. Two functions are renamed because of what that check found.
+
+### Breaking
+
+- `error_message` is now `error_text`. com_err, which Kerberos and e2fsprogs link, defines `error_message(long)` and calls it internally, so a program's static copy of ours would have answered those calls.
+- `context_free` is now `context_release`, because libselinux defines `context_free` and a lot of programs link libselinux without knowing it.
+
+### Added
+
+- `burrow-gen amalgamate --packages` generates a smaller pair with only the packages you name and what they need, and `BURROW_OMIT_` macros drop packages from the full pair at compile time. Leaving out something another package needs is an `#error` that names both. `make check` builds every combination. See "Leaving packages out" in docs/guides/building.md.
+- `burrow-gen collisions` compares the symbols libburrow.a exports, plus the C name of every Go declaration not yet ported, with the symbol tables of the libraries you give it. `make collisions` runs it against the libraries on your machine, and CI runs it against the 65 packages in `tools/collision-packages.txt` on Linux and the SDK on macOS. The clashes that can't hurt anyone are waived in `tools/collision-waivers.txt`, each with its reason.
+- Go 1.27's `uuid.Parse` and `UUID.Compare` are mapped to `uuid_parse_str` and `uuid_cmp`, since libuuid and macOS libc already have the other names.
+
 ## v0.0.35 (2026-09-23)
 
 Every guide and the README are now compiled and run, 215 blocks from 54 programs, and a block that stops matching its program fails CI.

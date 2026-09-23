@@ -4,6 +4,23 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.34 (2026-09-23)
+
+Nine more guides are compiled and run, which makes sixteen of twenty two, with 111 blocks from 36 programs.
+
+### Checked docs
+
+- Converted conventions, goroutines, channels, atomics, slices, maps, functions and types. Each block is now cut from a program under `docs/examples`, and the program is built with warnings as errors and run under the sanitizers.
+- Prototype blocks in the types guide are compiled as redeclarations of the header's prototypes, so the compiler rejects the guide if the two ever disagree.
+
+### Fixed in the docs
+
+- The types guide had drifted from the code. It described `Field` members that were removed, an FNV-1a hash that was replaced, a hash number on every descriptor, and a `STRUCT` macro it said did not exist yet. It now matches `type.h` and shows a compiled `BURROW_STRUCT` example.
+- The functions guide used `S()` without `BURROW_SHORT` and a `CHECK` macro that only exists in the tests.
+- The goroutines guide said `runtime_numcpu` returns 0 outside `runtime_main`, which it does not.
+- The channels pipeline example was missing two includes, and the select example printed its results in an order that depends on which ready arm `chan_select` picks.
+- Blocks that ended in `...` or `{ ... }` in the channels, atomics, maps, functions and types guides now do something real.
+
 ## v0.0.33 (2026-09-23)
 
 The code in the guides is now compiled and run, and doing that turned up examples that could never have worked.

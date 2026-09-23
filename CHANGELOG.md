@@ -4,6 +4,24 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.35 (2026-09-23)
+
+Every guide and the README are now compiled and run, 215 blocks from 54 programs, and a block that stops matching its program fails CI.
+
+### Checked docs
+
+- Converted context, errors, interfaces, strings, allocators, sync and building, which finishes the twenty two guides. The one block in building needs the generated amalgamation, so it is marked and the copy CI builds is `tests/amalgamation/hello.c`.
+- The README is checked too. 26 of its 32 blocks are regions of programs under `docs/examples/readme`, and the six that use `strings`, `fmt`, `strconv` or `os` are marked with the package they wait for.
+- `burrow-gen doc` rejects a `checked.txt` entry that is not a file, so a typo there can't quietly turn a file's checking off.
+
+### Fixed in the docs
+
+- The README used `DEFER` outside a scope, `CancelFunc` where the type is `ContextCancelFunc`, a zero `SyncCond` as if it were ready, and descriptors named `TYPE_BUF` and `counter_type` that don't exist. Its context example freed the context while the worker could still be running.
+- The strings and allocators guides called functions from the `strings` and `os` packages, which aren't ported yet, and the strings guide said `Builder` was. They now use the core `Str` API.
+- The sync guide used short `SYNC_MAP_*` names without `BURROW_SHORT`, read the range callback's key through a field that isn't there, and called an `out_of_memory()` that doesn't exist.
+- The interfaces guide asserted to `TYPE_OS_FILE`, which comes with `os`, and wrote its method bodies as `...`.
+- The README's Status section now says what is true: the core works and the packages are still to come.
+
 ## v0.0.34 (2026-09-23)
 
 Eight more guides are compiled and run, which makes fifteen of twenty two, with 111 blocks from 36 programs.

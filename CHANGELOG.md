@@ -4,6 +4,17 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.45 (2026-09-24)
+
+Examples and fuzz targets run now, so a test binary runs everything `go test` runs without `-test.fuzz`.
+
+### Added
+
+- `testing`: examples, with their expected output given in the `TESTING_MAIN` list and `TESTING_UNORDERED` for output in any order. Standard output is captured whether it goes through stdio, fmt or descriptor 1.
+- `testing`: fuzz targets. `TestingF`, `testing_f_add_v`, `testing_f_fuzz_v` and `testing_fuzz_arg`, with each seed run as a `seed#N` subtest and Go's messages for mismatched seeds and misused F methods.
+- `TYPE_BYTES`, the descriptor for `[]byte`.
+- Examples and Fuzz targets sections in `docs/guides/testing.md`.
+
 ## v0.0.44 (2026-09-24)
 
 Benchmarks run now, with the same flags and the same output as `go test -bench`.

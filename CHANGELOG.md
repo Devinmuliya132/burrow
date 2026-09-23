@@ -4,6 +4,16 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.46 (2026-09-24)
+
+Fuzz targets read their seeds from `testdata/fuzz` now, and the PAL can do file I/O on every platform.
+
+### Added
+
+- `pal`: the file group, with open, read, write, stat, directories, links, permissions, pipes and dup on POSIX and Windows (#169).
+- `pal_chdir` and `pal_getcwd`, which were declared but never implemented (#170).
+- `testing`: seeds from `testdata/fuzz/<target>` in Go's corpus file format, each run as a subtest named after its file. A bad file fails the target with Go's exact message, including the go/parser error for a malformed line (#170).
+
 ## v0.0.45 (2026-09-24)
 
 Examples and fuzz targets run now, so a test binary runs everything `go test` runs without `-test.fuzz`.

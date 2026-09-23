@@ -4,6 +4,26 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.40 (2026-09-23)
+
+strconv is finished. Floats and complex numbers are in, every function is fuzzed against Go's, and the coverage gate counts the package as done.
+
+### Added
+
+- strconv floats: `ParseFloat`, `FormatFloat` and `AppendFloat` in every format Go has, using Go 1.27's unrounded scaling, so both the shortest output and parsing are exact. The tests check Go's own tables plus several million generated cases against Go's output.
+- strconv complex numbers: `ParseComplex`, `FormatComplex`.
+- A strconv fuzz target that checks every function against Go's on the same input. `make fuzz-replay` replays its corpus on every build.
+- strconv is listed in `tools/coverage-done.txt`, so the coverage gate fails if a declaration goes missing.
+
+### Changed
+
+- Quoting, unquoting and float formatting write into a stack buffer first and then allocate the result at its exact size, where they used to take two passes. Quote and unquote went from about 2x Go's time to about 1.1x. `AppendInt` and `AppendUint` take 0 to 99 straight from the digit table.
+
+### Fixed
+
+- `IsGraphic` of a negative rune now matches Go, which looks it up by its low 16 bits. The fuzzer found this one.
+- `pal_test` no longer tries to reserve 10 GB of address space on 32 bit targets.
+
 ## v0.0.39 (2026-09-23)
 
 The first two thirds of strconv are here: quoting, unquoting, integers and booleans, all checked against Go's own test tables. Errors now have somewhere to live that is not the caller's allocator, and math/bits is ported.

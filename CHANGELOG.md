@@ -4,6 +4,17 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.43 (2026-09-24)
+
+The `testing` package is here, so tests can be written the way Go writes them. Benchmarks, examples and moving the existing tests over come next.
+
+### Added
+
+- `testing`: `TestingT` and `TestingM`, subtests, `Cleanup`, `Skip`, `Helper`, `Parallel`, and the `-test.*` flags for running tests, including `-test.run`, `-test.skip`, `-test.count`, `-test.cpu`, `-test.failfast`, `-test.shuffle`, `-test.list`, `-test.timeout` and `-test.v=test2json`. The output matches what `go test` prints.
+- `TESTING_MAIN`, `TESTING_MAIN_WITH` and `TESTING_MAIN_BARE`, which turn an X macro list of tests into `main`.
+- A built in matcher for `-test.run` and `-test.skip`, used until there is a regexp package.
+- `docs/guides/testing.md`, five examples, and a README section.
+
 ## v0.0.42 (2026-09-23)
 
 fmt is finished. Scanning is in, and the coverage gate counts the package as done. This release also fixes the problems that turned CI red after v0.0.40, which is why v0.0.41 has a tag and no published release.

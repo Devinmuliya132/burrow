@@ -4,6 +4,35 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.1.0 (2026-09-24)
+
+P0 is done. This is the release where burrow has a runtime: goroutines, channels and select, defer and panic, sync, timers, the netpoller, context and reflect, on Linux, macOS and Windows. It also has the tools the rest of the standard library will be ported with. The gate program from issue #1 starts a goroutine, sends on a channel while another goroutine selects on it, runs a deferred call while a panic unwinds past it, and prints a struct with `%v`. It passes on all three platforms and is clean under ThreadSanitizer. Everything from here on is packages.
+
+### Added
+
+- `testing`: fuzzing is guided by the compiler's coverage counters, as in Go. Inputs that reach new code are minimized and kept, and the stats line counts them (#174).
+- `tools/burrow-gen tests`: reads one of Go's test files and writes a C test file with the tables translated and each test stubbed out with its Go left to port. A fixture and its output are checked in, and `make check` keeps them in step (#177).
+- `tests/tier0_test.c`: the P0 gate program (#178).
+- `pal_signal_install` takes PAL_SIGINT and PAL_SIGTERM on Windows through a console control handler, mapped as Go's os/signal maps them, so Ctrl-C stops `-test.fuzz` there the way it does elsewhere (#183).
+- `pal_readdir` on Cosmopolitan, so the fuzz seed corpus loads there too (#180, closing #179).
+- A section on porting a test from Go in `docs/guides/testing.md`.
+
+### Changed
+
+- Every test in `tests/` runs on the `testing` package, so all of them take `go test`'s flags. `tests/harness.h` is gone (#175).
+- `make check` runs clang-format and the trailing whitespace check too, the same way the lint job does (#181, #182).
+
+### Fixed
+
+- The fuzzer copied from a NULL pointer when a mutation left a value empty, which UBSan reports (#175).
+- The Windows stack walk stops at a zero return address, which Wine gives for frames it cannot unwind (#175).
+- The windows-msvc, cosmopolitan and differential fuzz CI jobs build again. When `BURROW_NO_FUZZ_HOOKS` is defined, burrow leaves its coverage hooks out, so it links with libFuzzer (#180).
+- The gc backend's tests run on the main thread again, where Boehm can see them. Since #175 they had been running on a goroutine, and Boehm crashed in about half of runs. The `-test.shuffle=on` seed no longer needs `timespec_get`, which the amalgamation could hide (#182).
+
+### Not yet
+
+- Symlinks come back as regular files under Wine (#176).
+
 ## v0.0.47 (2026-09-24)
 
 `-test.fuzz` looks for new failing inputs now, the way `go test -fuzz` does.

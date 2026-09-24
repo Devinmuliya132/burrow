@@ -4,6 +4,20 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.0.47 (2026-09-24)
+
+`-test.fuzz` looks for new failing inputs now, the way `go test -fuzz` does.
+
+### Added
+
+- `testing`: `-test.fuzz` with Go's coordinator and workers, mutators, random source and minimizer. A failing input is shrunk and written to `testdata/fuzz/<target>`, and the program prints the command that runs it again. `-test.fuzztime`, `-test.fuzzminimizetime` and `-test.fuzzcachedir` work as in Go (#172).
+- `testing`: Ctrl-C ends fuzzing with PASS, as in Go, except on Windows (#173).
+- `pal`: `PAL_WAIT_SIGNAL`, the crash signals and `pal_std_handle` (#172).
+
+### Not yet
+
+- Fuzzing has no coverage guidance.
+
 ## v0.0.46 (2026-09-24)
 
 Fuzz targets read their seeds from `testdata/fuzz` now, and the PAL can do file I/O on every platform.

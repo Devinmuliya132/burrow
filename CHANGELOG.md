@@ -4,6 +4,29 @@ Every release gets a section here and the release workflow refuses to publish a 
 
 Versions are `0.MINOR.PATCH` until 1.0. The minor number goes up when a milestone finishes and the patch number goes up for everything in between. Nothing before 1.0 is a stable API and everything before 1.0 is published as a prerelease, because none of it has been through a security review.
 
+## v0.1.1 (2026-09-24)
+
+The first P1 packages: strings and bytes in full, and the pieces they stand on.
+
+### Added
+
+- `unicode/utf16`, the whole package (#184).
+- `hash`, with `hash/crc32`, `hash/crc64`, `hash/adler32` and `hash/fnv` (#186).
+- `unicode`, with every one of Go's range tables and the case mappings. The tables are generated from Go's own by `tools/gen-unicode`, not typed in (#187).
+- `iter`, with `IterSeq`, `IterSeq2`, `iter_pull` and the `BURROW_RANGE` loop macros. Pull runs on coroutines in the runtime (#188).
+- `strings`, every exported name, including `Builder`, `Reader` and `Replacer` with all four of Go's algorithms. Long substring search uses a portable SWAR loop in place of Go's assembly (#189).
+- `bytes`, every exported name, including `Buffer` and `Reader`. The boundary tests run on every platform, not only Linux (#190).
+- `RuneFunc` and `RuneMapFunc` in `burrow/func.h`.
+
+### Changed
+
+- A `BytesBuffer` that cannot grow returns an out of memory error and is left as it was, where Go's panics with `ErrTooLarge` (#190).
+
+### Not yet
+
+- Substring search is still slower than Go's on most inputs. The numbers are in burrow-bench.
+- Symlinks come back as regular files under Wine (#176).
+
 ## v0.1.0 (2026-09-24)
 
 P0 is done. This is the release where burrow has a runtime: goroutines, channels and select, defer and panic, sync, timers, the netpoller, context and reflect, on Linux, macOS and Windows. It also has the tools the rest of the standard library will be ported with. The gate program from issue #1 starts a goroutine, sends on a channel while another goroutine selects on it, runs a deferred call while a panic unwinds past it, and prints a struct with `%v`. It passes on all three platforms and is clean under ThreadSanitizer. Everything from here on is packages.

